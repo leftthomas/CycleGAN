@@ -13,7 +13,7 @@ from torchvision.utils import save_image
 from tqdm import tqdm
 
 from model import Generator, Discriminator
-from utils import ImageDataset, weights_init_normal
+from utils import ImageDataset, weights_init_normal, ReplayBuffer
 
 # for reproducibility
 np.random.seed(1)
@@ -61,8 +61,15 @@ def train(g_a, g_b, d_a, d_b, data_loader, g_optimizer, da_optimizer, db_optimiz
 
         da_optimizer.step()
 
+        # Discriminator B #
+        db_optimizer.zero_grad()
+
+        db_optimizer.step()
+
         total_num += batch_size
-        train_bar.set_description('Train Epoch: [{}/{}] Loss: {:.4f}'.format(epoch, epochs, total_loss / total_num))
+        train_bar.set_description('Train Epoch: [{}/{}] G Loss: {:.4f}, DA Loss: {:.4f}, DB Loss: {:.4f}'
+                                  .format(epoch, epochs, total_g_loss / total_num, total_da_loss / total_num,
+                                          total_db_loss / total_num))
 
     return total_g_loss / total_num, total_da_loss / total_num, total_db_loss / total_num
 
@@ -124,6 +131,9 @@ if __name__ == '__main__':
     criterion_adversarial = torch.nn.MSELoss()
     criterion_cycle = torch.nn.L1Loss()
     criterion_identity = torch.nn.L1Loss()
+
+    fake_A_buffer = ReplayBuffer()
+    fake_B_buffer = ReplayBuffer()
 
     # training loop
     results = {'train_g_loss': [], 'train_da_loss': [], 'train_db_loss': []}

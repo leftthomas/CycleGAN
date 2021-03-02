@@ -38,13 +38,12 @@ class ImageDataset(Dataset):
 
 class ReplayBuffer:
     def __init__(self, max_size=50):
-        assert (max_size > 0), 'Empty buffer or trying to create a black hole. Be careful.'
         self.max_size = max_size
         self.data = []
 
     def push_and_pop(self, data):
         to_return = []
-        for element in data.data:
+        for element in data.detach():
             element = torch.unsqueeze(element, 0)
             if len(self.data) < self.max_size:
                 self.data.append(element)
