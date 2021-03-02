@@ -38,8 +38,8 @@ def train(g_a, g_b, d_a, d_b, data_loader, g_optimizer, da_optimizer, db_optimiz
 
         fake_b = g_a(real_a)
         fake_a = g_b(real_b)
-        pred_fake_b = d_a(fake_b)
-        pred_fake_a = d_b(fake_a)
+        pred_fake_b = d_b(fake_b)
+        pred_fake_a = d_a(fake_a)
 
         # adversarial loss
         target_fake_a = torch.ones(pred_fake_a.size(), device=pred_fake_a.device)
@@ -58,13 +58,29 @@ def train(g_a, g_b, d_a, d_b, data_loader, g_optimizer, da_optimizer, db_optimiz
 
         # Discriminator A #
         da_optimizer.zero_grad()
-
+        pred_real_a = d_a(real_a)
+        target_real_a = torch.ones(pred_real_a.size(), device=pred_real_a.device)
+        fake_a = fake_A_buffer.push_and_pop(fake_a)
+        pred_fake_a = d_a(fake_a)
+        target_fake_a = torch.zeros(pred_fake_a.size(), device=pred_fake_a.device)
+        adversarial_loss = (criterion_adversarial(pred_real_a, target_real_a)
+                            + criterion_adversarial(pred_fake_a, target_fake_a)) / 2
+        adversarial_loss.backward()
         da_optimizer.step()
+        total_da_loss += adversarial_loss.item() * batch_size
 
         # Discriminator B #
         db_optimizer.zero_grad()
-
+        pred_real_b = d_b(real_b)
+        target_real_b = torch.ones(pred_real_b.size(), device=pred_real_b.device)
+        fake_b = fake_B_buffer.push_and_pop(fake_b)
+        pred_fake_b = d_b(fake_b)
+        target_fake_b = torch.zeros(pred_fake_b.size(), device=pred_fake_b.device)
+        adversarial_loss = (criterion_adversarial(pred_real_b, target_real_b)
+                            + criterion_adversarial(pred_fake_b, target_fake_b)) / 2
+        adversarial_loss.backward()
         db_optimizer.step()
+        total_db_loss += adversarial_loss.item() * batch_size
 
         total_num += batch_size
         train_bar.set_description('Train Epoch: [{}/{}] G Loss: {:.4f}, DA Loss: {:.4f}, DB Loss: {:.4f}'
