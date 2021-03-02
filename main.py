@@ -1,15 +1,16 @@
 import argparse
 import itertools
 import os
+
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn.functional as F
 from torch.backends import cudnn
 from torch.optim import Adam
+from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
-from torch.optim.lr_scheduler import LambdaLR
+
 from model import Generator, Discriminator
 from utils import ImageDataset, weights_init_normal
 
@@ -104,7 +105,7 @@ if __name__ == '__main__':
 
     # optimizer setup
     optimizer_G = Adam(itertools.chain(G_A.parameters(), G_B.parameters()), lr=lr, betas=(0.5, 0.999))
-    optimizer_D = Adam(itertools.chain(D_A.parameters(), D_B.parameters()), lr=lr / 2, betas=(0.5, 0.999))
+    optimizer_D = Adam(itertools.chain(D_A.parameters(), D_B.parameters()), lr=lr, betas=(0.5, 0.999))
     lr_scheduler_G = LambdaLR(optimizer_G, lr_lambda=lambda eiter: 1.0 - max(0, eiter - decay) / float(decay))
     lr_scheduler_D = LambdaLR(optimizer_D, lr_lambda=lambda eiter: 1.0 - max(0, eiter - decay) / float(decay))
 

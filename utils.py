@@ -1,5 +1,6 @@
 import glob
 import random
+
 import torch
 from PIL import Image
 from torch.utils.data.dataset import Dataset
@@ -8,6 +9,7 @@ from torchvision import transforms
 
 class ImageDataset(Dataset):
     def __init__(self, root, mode='train'):
+        self.mode = mode
         if mode == 'train':
             self.transform = transforms.Compose(
                 [transforms.RandomResizedCrop(256, (1.0, 1.12), interpolation=Image.BICUBIC),
@@ -21,11 +23,14 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, index):
         a = self.transform(Image.open(self.files_A[index]))
-        b = self.transform(Image.open(self.files_B[random.randint(0, len(self.files_B) - 1)]))
+        if self.mode == 'train':
+            b = self.transform(Image.open(self.files_B[random.randint(0, len(self.files_B) - 1)]))
+        else:
+            b = self.transform(Image.open(self.files_B[index]))
         return a, b
 
     def __len__(self):
-        return len(self.files_A)
+        return min(len(self.files_A), len(self.files_B))
 
 
 class ReplayBuffer:
