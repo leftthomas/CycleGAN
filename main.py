@@ -9,6 +9,7 @@ from torch.backends import cudnn
 from torch.optim import Adam
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data.dataloader import DataLoader
+from torchvision.utils import save_image
 from tqdm import tqdm
 
 from model import Generator, Discriminator
@@ -27,17 +28,18 @@ def train(g_a, g_b, d_a, d_b, data_loader, g_optimizer, da_optimizer, db_optimiz
     g_b.train()
     d_a.train()
     d_b.train()
-    total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader, dynamic_ncols=True)
-    for real_a, real_b in train_bar:
+    total_g_loss, total_da_loss, total_db_loss, total_num = 0.0, 0.0, 0.0, 0
+    train_bar = tqdm(data_loader, dynamic_ncols=True)
+    for real_a, real_b, _, _ in train_bar:
         real_a, real_b = real_a.cuda(), real_b.cuda()
 
         # Generators #
         g_optimizer.zero_grad()
 
-        fake_b = G_A(real_a)
-        fake_a = G_B(real_b)
-        pred_fake_b = D_B(fake_b)
-        pred_fake_a = D_A(fake_a)
+        fake_b = g_a(real_a)
+        fake_a = g_b(real_b)
+        pred_fake_b = d_a(fake_b)
+        pred_fake_a = d_b(fake_a)
 
         # adversarial loss
         target_fake_a = torch.ones(pred_fake_a.size(), device=pred_fake_a.device)
@@ -45,13 +47,14 @@ def train(g_a, g_b, d_a, d_b, data_loader, g_optimizer, da_optimizer, db_optimiz
         adversarial_loss = criterion_adversarial(pred_fake_b, target_fake_b) + criterion_adversarial(pred_fake_a,
                                                                                                      target_fake_a)
         # cycle loss
-        cycle_loss = criterion_cycle(G_B(fake_b), real_a) + criterion_cycle(G_A(fake_a), real_b)
+        cycle_loss = criterion_cycle(g_b(fake_b), real_a) + criterion_cycle(g_a(fake_a), real_b)
         # identity loss
-        identity_loss = criterion_identity(G_B(real_a), real_a) + criterion_identity(G_A(real_b), real_b)
+        identity_loss = criterion_identity(g_b(real_a), real_a) + criterion_identity(g_a(real_b), real_b)
 
-        loss = adversarial_loss + 10 * cycle_loss + 5 * identity_loss
-        loss.backward()
+        generators_loss = adversarial_loss + 10 * cycle_loss + 5 * identity_loss
+        generators_loss.backward()
         g_optimizer.step()
+        total_g_loss += generators_loss.item() * batch_size
 
         # Discriminator A #
         da_optimizer.zero_grad()
@@ -59,18 +62,23 @@ def train(g_a, g_b, d_a, d_b, data_loader, g_optimizer, da_optimizer, db_optimiz
         da_optimizer.step()
 
         total_num += batch_size
-        total_loss += loss.item() * batch_size
         train_bar.set_description('Train Epoch: [{}/{}] Loss: {:.4f}'.format(epoch, epochs, total_loss / total_num))
 
-    return total_loss / total_num
+    return total_g_loss / total_num, total_da_loss / total_num, total_db_loss / total_num
 
 
 # val for one epoch
-def val(net, data_loader):
-    net.eval()
+def val(g_a, g_b, data_loader):
+    g_a.eval()
+    g_b.eval()
     with torch.no_grad():
-        for a, _ in tqdm(data_loader, desc='Generating images', dynamic_ncols=True):
-            fake_a = net(a.cuda())
+        for a, b, a_name, b_name in tqdm(data_loader, desc='Generating images', dynamic_ncols=True):
+            fake_b = (g_a(a.cuda()) + 1.0) / 2
+            fake_a = (g_b(b.cuda()) + 1.0) / 2
+            save_a_path = '{}/A/{}'.format(save_root, a_name.split('/')[-1])
+            save_b_path = '{}/B/{}'.format(save_root, b_name.split('/')[-1])
+            save_image(fake_b, save_a_path)
+            save_image(fake_a, save_b_path)
 
 
 if __name__ == '__main__':

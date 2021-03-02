@@ -22,12 +22,15 @@ class ImageDataset(Dataset):
         self.files_B = sorted(glob.glob('{}/{}/B/*.jpg'.format(root, mode)))
 
     def __getitem__(self, index):
-        a = self.transform(Image.open(self.files_A[index]))
+        a_name = self.files_A[index]
+        a = self.transform(Image.open(a_name))
         if self.mode == 'train':
-            b = self.transform(Image.open(self.files_B[random.randint(0, len(self.files_B) - 1)]))
+            b_name = self.files_B[random.randint(0, len(self.files_B) - 1)]
+            b = self.transform(Image.open(b_name))
         else:
-            b = self.transform(Image.open(self.files_B[index]))
-        return a, b
+            b_name = self.files_B[index]
+            b = self.transform(Image.open(b_name))
+        return a, b, a_name, b_name
 
     def __len__(self):
         return min(len(self.files_A), len(self.files_B))
