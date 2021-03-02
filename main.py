@@ -22,40 +22,41 @@ cudnn.benchmark = False
 
 
 # train for one epoch
-def train(translator_a, translator_b, discriminator_a, discriminator_b, data_loader, g_optimizer, d_optimizer):
-    translator_a.train()
-    translator_b.train()
-    discriminator_a.train()
-    discriminator_b.train()
+def train(g_a, g_b, d_a, d_b, data_loader, g_optimizer, da_optimizer, db_optimizer):
+    g_a.train()
+    g_b.train()
+    d_a.train()
+    d_b.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader, dynamic_ncols=True)
-    for a, b in train_bar:
-        a, b = a.cuda(), b.cuda()
+    for real_a, real_b in train_bar:
+        real_a, real_b = real_a.cuda(), real_b.cuda()
 
         # Generators #
         g_optimizer.zero_grad()
 
-        fake_b = G_A(a)
-        fake_a = G_B(b)
-        pred_b = D_B(fake_b)
-        pred_a = D_A(fake_a)
+        fake_b = G_A(real_a)
+        fake_a = G_B(real_b)
+        pred_fake_b = D_B(fake_b)
+        pred_fake_a = D_A(fake_a)
 
         # adversarial loss
-        target_a = torch.ones(pred_a.size(), device=pred_a.device)
-        target_b = torch.ones(pred_b.size(), device=pred_b.device)
-        adversarial_loss = criterion_adversarial(pred_b, target_b) + criterion_adversarial(pred_a, target_a)
+        target_fake_a = torch.ones(pred_fake_a.size(), device=pred_fake_a.device)
+        target_fake_b = torch.ones(pred_fake_b.size(), device=pred_fake_b.device)
+        adversarial_loss = criterion_adversarial(pred_fake_b, target_fake_b) + criterion_adversarial(pred_fake_a,
+                                                                                                     target_fake_a)
         # cycle loss
-        cycle_loss = criterion_cycle(G_B(fake_b), a) + criterion_cycle(G_A(fake_a), b)
+        cycle_loss = criterion_cycle(G_B(fake_b), real_a) + criterion_cycle(G_A(fake_a), real_b)
         # identity loss
-        identity_loss = criterion_identity(G_B(a), a) + criterion_identity(G_A(b), b)
+        identity_loss = criterion_identity(G_B(real_a), real_a) + criterion_identity(G_A(real_b), real_b)
 
         loss = adversarial_loss + 10 * cycle_loss + 5 * identity_loss
         loss.backward()
         g_optimizer.step()
 
         # Discriminator A #
-        d_optimizer.zero_grad()
+        da_optimizer.zero_grad()
 
-        d_optimizer.step()
+        da_optimizer.step()
 
         total_num += batch_size
         total_loss += loss.item() * batch_size
@@ -105,9 +106,11 @@ if __name__ == '__main__':
 
     # optimizer setup
     optimizer_G = Adam(itertools.chain(G_A.parameters(), G_B.parameters()), lr=lr, betas=(0.5, 0.999))
-    optimizer_D = Adam(itertools.chain(D_A.parameters(), D_B.parameters()), lr=lr, betas=(0.5, 0.999))
+    optimizer_DA = Adam(D_A.parameters(), lr=lr, betas=(0.5, 0.999))
+    optimizer_DB = Adam(D_B.parameters(), lr=lr, betas=(0.5, 0.999))
     lr_scheduler_G = LambdaLR(optimizer_G, lr_lambda=lambda eiter: 1.0 - max(0, eiter - decay) / float(decay))
-    lr_scheduler_D = LambdaLR(optimizer_D, lr_lambda=lambda eiter: 1.0 - max(0, eiter - decay) / float(decay))
+    lr_scheduler_DA = LambdaLR(optimizer_DA, lr_lambda=lambda eiter: 1.0 - max(0, eiter - decay) / float(decay))
+    lr_scheduler_DB = LambdaLR(optimizer_DB, lr_lambda=lambda eiter: 1.0 - max(0, eiter - decay) / float(decay))
 
     # loss setup
     criterion_adversarial = torch.nn.MSELoss()
@@ -115,16 +118,22 @@ if __name__ == '__main__':
     criterion_identity = torch.nn.L1Loss()
 
     # training loop
-    results = {'train_loss': []}
+    results = {'train_g_loss': [], 'train_da_loss': [], 'train_db_loss': []}
     if not os.path.exists(save_root):
         os.makedirs(save_root)
     for epoch in range(1, epochs + 1):
-        train_loss = train(G_A, G_B, D_A, D_B, train_loader, optimizer_G, optimizer_D)
-        results['train_loss'].append(train_loss)
+        g_loss, da_loss, db_loss = train(G_A, G_B, D_A, D_B, train_loader, optimizer_G, optimizer_DA, optimizer_DB)
+        results['train_g_loss'].append(g_loss)
+        results['train_da_loss'].append(da_loss)
+        results['train_db_loss'].append(db_loss)
         val(G_A, G_B, test_loader)
         lr_scheduler_G.step()
-        lr_scheduler_D.step()
+        lr_scheduler_DA.step()
+        lr_scheduler_DB.step()
         # save statistics
         data_frame = pd.DataFrame(data=results, index=range(1, epoch + 1))
         data_frame.to_csv('{}/results.csv'.format(save_root), index_label='epoch')
-        torch.save(backbone.state_dict(), '{}/{}_model.pth'.format(save_root, save_name_pre))
+        torch.save(G_A.state_dict(), '{}/GA.pth'.format(save_root))
+        torch.save(G_B.state_dict(), '{}/GB.pth'.format(save_root))
+        torch.save(D_A.state_dict(), '{}/DA.pth'.format(save_root))
+        torch.save(D_B.state_dict(), '{}/DB.pth'.format(save_root))
