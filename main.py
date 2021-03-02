@@ -101,9 +101,9 @@ def val(g_a, g_b, data_loader):
             save_a_path = '{}/A/{}'.format(save_root, a_name[0].split('/')[-1])
             save_b_path = '{}/B/{}'.format(save_root, b_name[0].split('/')[-1])
             if not os.path.exists(os.path.dirname(save_a_path)):
-                os.makedirs(save_a_path)
+                os.makedirs(os.path.dirname(save_a_path))
             if not os.path.exists(os.path.dirname(save_b_path)):
-                os.makedirs(save_b_path)
+                os.makedirs(os.path.dirname(save_b_path))
             save_image(fake_b, save_a_path)
             save_image(fake_a, save_b_path)
 
