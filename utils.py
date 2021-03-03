@@ -23,10 +23,10 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, index):
         a_name = self.files_A[index]
-        a = self.transform(Image.open(a_name))
+        a = self.transform(Image.open(a_name).convert('RGB'))
         if self.mode == 'train':
             b_name = self.files_B[random.randint(0, len(self.files_B) - 1)]
-            b = self.transform(Image.open(b_name))
+            b = self.transform(Image.open(b_name).convert('RGB'))
         else:
             b_name = self.files_B[index]
             b = self.transform(Image.open(b_name))
