@@ -15,7 +15,7 @@ conda install pytorch=1.7.1 torchvision cudatoolkit=11.0 -c pytorch
 
 ## Dataset
 
-[monet2photo](https://people.eecs.berkeley.edu/~taesung_park/CycleGAN/datasets/monet2photo.zip)
+[horse2zebra](https://people.eecs.berkeley.edu/~taesung_park/CycleGAN/datasets/horse2zebra.zip)
 dataset is used in this repo, you could download this dataset from official website. The data 
 directory structure is shown as follows:
 
@@ -34,7 +34,7 @@ directory structure is shown as follows:
 ```
 python main.py --epochs 300 --lr 0.0001
 optional arguments:
---data_root                   Datasets root path [default value is 'monet2photo']
+--data_root                   Datasets root path [default value is 'horse2zebra']
 --batch_size                  Number of images in each mini-batch [default value is 1]
 --epochs                      Number of epochs over the data to train [default value is 200]
 --lr                          Initial learning rate [default value is 0.0002]
@@ -44,7 +44,7 @@ optional arguments:
 
 ## Results
 
-The model is trained on one NVIDIA GTX TITAN (12G) GPU. Here are some examples, on the left is the original image, and
-on the right is the generated image.
+The model is trained on one NVIDIA GTX TITAN (12G) GPU. Here are some examples, and the pretrained model could be
+downloaded from [BaiduYun](https://pan.baidu.com/s/15UObWkmPy2p2OqmXgWPIVA), the extractor code is `qjyg`.
 
 ![vis](result/vis.png)
